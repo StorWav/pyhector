@@ -77,10 +77,32 @@ PYBIND11_MODULE(_binding, m) {
              )doc",
              py::arg("component"), py::arg("name"), py::arg("in_spinup") = false)
         .def("clear_observables", &Hector::clear_observables, "Clear observables registered so far.")
-        .def("reset", &Hector::reset, "(Hard) reset Hector.")
+        .def("prepareToRun", &Hector::prepareToRun, "Prepare Hector to run.")
+        .def("mkcore", &Hector::mkcore,
+             R"doc(
+                   Create an instance of Hector.
+
+                   Parameters
+                   ----------
+                   loglvl : int, default ``2``
+                   logtofile : bool, default ``False``
+                   logtoscrn : bool, default ``False``
+             )doc",
+             py::arg("loglvl") = 2, py::arg("logtofile") = false, py::arg("logtoscrn") = false)
         .def("run", &Hector::run,
              R"doc(
                    Run Hector.
+
+                   Parameters
+                   ----------
+                   until : double, default ``None``
+                       Year to run until (including) or run till end date as given by
+                       configuration if None
+             )doc",
+             py::arg("until") = py::none())
+        .def("reset", &Hector::reset,
+             R"doc(
+                   Reset Hector.
 
                    Parameters
                    ----------

@@ -36,12 +36,12 @@ __version__ = _version.get_versions()["version"]
 class Hector(_Hector):
     """Class providing an interface to Hector."""
 
-    def __enter__(self):
-        self.reset()
-        return self
+    # def __enter__(self):
+    #     self.reset()
+    #     return self
 
-    def __exit__(self, type_, value, traceback):
-        self.shutdown()
+    # def __exit__(self, type_, value, traceback):
+    #     self.shutdown()
 
     def set_value(self, section, variable, value):
         """
@@ -222,53 +222,57 @@ ssp585 = read_hector_input(
 )
 
 
-def run(scenario, config=None, base_config=None, outputs=None, return_config=False):
-    """
-    Runs a scenario through the Hector climate model.
+class wrapper:
+    def __init__(self, scenario=ssp585, config=None, base_config=None, outputs=["temperature.global_tas"], loglvl=2, logtofile=False, logtoscrn=False):
+    # def run(scenario, config=None, base_config=None, outputs=None, return_config=False):
+        """
+        Runs a scenario through the Hector climate model.
 
-    Parameters
-    ----------
-    scenario : DataFrame
-        DataFrame with emissions and albedo forcing. See ``pyhector.ssp126`` for
-        an example and :mod:`pyhector.units` for units of emissions values.
-    config : dictionary, default ``None``
-        Additional config options that overwrite the base
-        config.
-    base_config : dictionary
-        Base config to use. If None uses Hector's
-        default config. Values in config override values in base_config.
-        default None
-    outputs : array_like
-        List of requested output variables as strings.  if set to "all"
-        returns all available variables. Defaults to global temperature,  CO2
-        concentration and forcing. A full list is in :py:data:`variables`.
-    return_config : boolean
-        Additionaly return the full config used from adding
-        ``config`` values to ``base_config``. default False
+        Parameters
+        ----------
+        scenario : DataFrame
+            DataFrame with emissions and albedo forcing. See ``pyhector.ssp126`` for
+            an example and :mod:`pyhector.units` for units of emissions values.
+        config : dictionary, default ``None``
+            Additional config options that overwrite the base
+            config.
+        base_config : dictionary
+            Base config to use. If None uses Hector's
+            default config. Values in config override values in base_config.
+            default None
+        outputs : array_like
+            List of requested output variables as strings.  if set to "all"
+            returns all available variables. Defaults to global temperature,  CO2
+            concentration and forcing. A full list is in :py:data:`variables`.
+        return_config : boolean
+            Additionaly return the full config used from adding
+            ``config`` values to ``base_config``. default False
 
-    Returns
-    -------
-    DataFrame
-        Pandas DataFrame with results in the columns requested in ``outputs``.
-    dictionary, optional
-        When ``return_config`` is set to True results and
-        parameters are returned as a tuple.
-    """
-    if outputs is None:
-        outputs = [
-            "temperature.global_tas",
-            "simpleNbox.CO2_concentration",
-            "forcing.RF_tot",
-        ]
-    if base_config is None:
-        parameters = deepcopy(_default_config)
-    else:
-        parameters = deepcopy(base_config)
-    if config:
-        for key, data in config.items():
-            for option, value in data.items():
-                parameters[key][option] = value
-    with Hector() as h:
+        Returns
+        -------
+        DataFrame
+            Pandas DataFrame with results in the columns requested in ``outputs``.
+        dictionary, optional
+            When ``return_config`` is set to True results and
+            parameters are returned as a tuple.
+        """
+        if outputs is None:
+            outputs = [
+                "temperature.global_tas",
+                "simpleNbox.CO2_concentration",
+                "forcing.RF_tot",
+            ]
+        if base_config is None:
+            parameters = deepcopy(_default_config)
+        else:
+            parameters = deepcopy(base_config)
+        if config:
+            for key, data in config.items():
+                for option, value in data.items():
+                    parameters[key][option] = value
+        # with Hector() as h:
+        h = Hector()
+        h.mkcore(loglvl=loglvl, logtofile=logtofile, logtoscrn=logtoscrn)
         if "RF_albedo" in scenario.columns:
             parameters["simpleNbox"]["RF_albedo"] = list(
                 zip(scenario["RF_albedo"].index, scenario["RF_albedo"])
@@ -283,18 +287,34 @@ def run(scenario, config=None, base_config=None, outputs=None, return_config=Fal
                 output[name]["variable"],
                 output[name].get("needs_date", False),
             )
-        h.run()
+            
+        h.prepareToRun()
+        self.h = h
+        self.parameters = parameters
+        self.outputs = outputs
+
+    def set_emissions(self, scenarioNew: pd.DataFrame):
+        self.h.set_emissions(scenarioNew)
+        return self
+    
+    def shutdown(self):
+        self.h.shutdown()
+
+    def reset(self, until: int=2020):
+        self.h.reset(until)
+        return self
+
+    def run(self, until: int=2025) -> pd.DataFrame:
+        self.h.run(until)
         results = {}
-        for name in outputs:
-            results[name] = h.get_observable(
+        for name in self.outputs:
+            results[name] = self.h.get_observable(
                 output[name]["component"], output[name]["variable"]
             )
 
-        start = int(parameters["core"]["startDate"])
+        start = int(self.parameters["core"]["startDate"])
         # End of range is non-inclusive in Python ranges.
-        end = int(parameters["core"]["endDate"]) + 1
+        end = start + len(results[name])
         index = np.arange(start, end)
         results = pd.DataFrame(results, index=index)
-    if return_config:
-        return results, parameters
-    return results
+        return results

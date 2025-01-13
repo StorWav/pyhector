@@ -8,11 +8,14 @@
 #include <pybind11/numpy.h>
 
 #include <stdexcept>
+#include <sstream>
+#include <iostream>
 
 #include "component_data.hpp"
 #include "h_exception.hpp"
 #include "message_data.hpp"
 #include "unitval.hpp"
+#include "logger.hpp"
 
 namespace hector = Hector;
 namespace py = pybind11;
@@ -22,6 +25,7 @@ namespace pyhector {
 Hector::Visitor::~Visitor() = default;
 
 bool Hector::Visitor::shouldVisit(bool in_spinup, double date) {
+    // std::cout << "Hector::shouldVisit()" << " " << __FILE__ << ":" << __LINE__ << " " << in_spinup << " " << date << "\n";
     // if in_spinup is true, date starts from 1, but last value is the start date (then hcore->inSpinup() is false already)
     // if in_spinup is false, date starts from start date + 1
     current_date = date;
@@ -56,7 +60,8 @@ void Hector::Visitor::visit(hector::Core* hcore) {
 
 hector::Core* Hector::core() {
     if (!core_) {
-        reset();
+        // reset();
+        mkcore(py::none(), py::none(), py::none());
     }
     return core_.get();
 }
@@ -84,9 +89,16 @@ double Hector::end_date() { return core()->getEndDate(); }
 
 double Hector::start_date() { return core()->getStartDate(); }
 
-void Hector::run(const py::object& until) {
+void Hector::prepareToRun() {
     visitor.spinup_size = 0;
     core()->prepareToRun();
+}
+
+void Hector::reset(const py::object& until) {
+    core()->reset(until.is_none() ? -1 : until.cast<double>());
+}
+
+void Hector::run(const py::object& until) {
     core()->run(until.is_none() ? -1 : until.cast<double>());
 }
 
@@ -95,8 +107,12 @@ void Hector::shutdown() {
     core_.reset();
 }
 
-void Hector::reset() {
-    core_.reset(new hector::Core(hector::Logger::WARNING, false, false));
+void Hector::mkcore(const py::object& loglvl, const py::object& logtofile, const py::object& logtoscrn) {
+    // core_.reset(new hector::Core(hector::Logger::WARNING, false, false));
+    hector::Logger::LogLevel loglevel = hector::Logger::WARNING;
+    if (!loglvl.is_none()) 
+        loglevel = static_cast<hector::Logger::LogLevel>(loglvl.cast<int>());
+    core_.reset(new hector::Core(loglevel, logtoscrn.is_none() ? false : logtoscrn.cast<bool>(), logtofile.is_none() ? false : logtofile.cast<bool>()));
     core_->init();
     core_->addVisitor(&visitor);
     for (auto& observable : visitor.observables) {
