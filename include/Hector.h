@@ -34,6 +34,7 @@ class Hector {
 
       public:
         ~Visitor() override;
+        void reset(const double reset_date) override;
         bool shouldVisit(const bool in_spinup, const double date) override;
         void visit(hector::Core* core) override;
     };
@@ -49,6 +50,8 @@ class Hector {
     std::size_t spinup_size() const;
     double end_date();
     double start_date();
+    double current_date();
+    double current_value(const std::string& component, const std::string& name, bool in_spinup);
     void mkcore(const py::object& loglvl, const py::object& logtofile, const py::object& logtoscrn);
     void prepareToRun();
     void run(const py::object& until);

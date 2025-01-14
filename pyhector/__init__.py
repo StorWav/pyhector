@@ -18,6 +18,7 @@ https://github.com/openclimatedata/pyhector
 
 import os
 from copy import deepcopy
+from typing import Dict
 
 import numpy as np
 import pandas as pd
@@ -293,18 +294,30 @@ class wrapper:
         self.parameters = parameters
         self.outputs = outputs
 
+    def __del__(self):
+        self.h.shutdown()
+
     def set_emissions(self, scenarioNew: pd.DataFrame):
         self.h.set_emissions(scenarioNew)
         return self
-    
-    def shutdown(self):
-        self.h.shutdown()
 
-    def reset(self, until: int=2020):
-        self.h.reset(until)
+    def reset_to(self, until: int=2020):
+        if self.h.current_date < until: 
+            self.run(until)
+        elif self.h.current_date > until:
+            self.h.reset(until)
         return self
 
-    def run(self, until: int=2025) -> pd.DataFrame:
+    def run_to(self, until: int=2025) -> Dict[str, float]:
+        self.h.run(until)
+        results = {}
+        for name in self.outputs:
+            results[name] = self.h.current_value(
+                output[name]["component"], output[name]["variable"]
+            )
+        return results
+            
+    def run_all(self, until: int=2025) -> pd.DataFrame:
         self.h.run(until)
         results = {}
         for name in self.outputs:

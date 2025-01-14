@@ -40,6 +40,7 @@ class Observable {
     void read_data(hector::Core* hcore, double current_date, std::size_t index);
     void reset(hector::Core* hcore);
     py::array_t<double> get_array() const;
+    double value_at(std::size_t index) const;
 };
 
 }  // namespace pyhector

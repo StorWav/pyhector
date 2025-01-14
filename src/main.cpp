@@ -43,6 +43,9 @@ PYBIND11_MODULE(_binding, m) {
         .def_property_readonly("spinup_size", &Hector::spinup_size, "Number of spinup steps run")
         .def_property_readonly("start_date", &Hector::start_date, "Start date")
         .def_property_readonly("end_date", &Hector::end_date, "End date")
+        .def_property_readonly("current_date", &Hector::current_date, "Current date")
+        .def("current_value", &Hector::current_value, "Get the last element of the output variable that corresponds to current_date.",
+             py::arg("component"), py::arg("name"), py::arg("in_spinup") = false)
         .def("add_observable", &Hector::add_observable,
              R"doc(
                    Set a variable that can be read later.

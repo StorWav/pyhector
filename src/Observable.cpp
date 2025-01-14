@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <limits>
+#include <stdexcept>
 
 #include "core.hpp"
 #include "imodel_component.hpp"
@@ -81,6 +82,13 @@ py::array_t<double> Observable::get_array() const {
 
     array.reset(new py::array_t<double>{static_cast<ssize_t>(values.size()), data, handle});
     return *array.get();
+}
+
+double Observable::value_at(std::size_t index) const {
+    if (values.size() <= index) {
+        throw std::runtime_error("Invalid index");
+    }
+    return values[index];
 }
 
 }  // namespace pyhector

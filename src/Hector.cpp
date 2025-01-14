@@ -24,6 +24,11 @@ namespace pyhector {
 
 Hector::Visitor::~Visitor() = default;
 
+void Hector::Visitor::reset(const double reset_date) {
+    // std::cout << "Hector::reset()" << " " << __FILE__ << ":" << __LINE__ << " " << reset_date << "\n";
+    current_date = reset_date;
+}
+
 bool Hector::Visitor::shouldVisit(bool in_spinup, double date) {
     // std::cout << "Hector::shouldVisit()" << " " << __FILE__ << ":" << __LINE__ << " " << in_spinup << " " << date << "\n";
     // if in_spinup is true, date starts from 1, but last value is the start date (then hcore->inSpinup() is false already)
@@ -49,6 +54,7 @@ void Hector::Visitor::visit(hector::Core* hcore) {
             throw std::runtime_error("Start date is after current date");
         }
         index = static_cast<std::size_t>(current_date - start_date);
+        // std::cout << "Hector::visit()" << " " << __FILE__ << ":" << __LINE__ << " " << start_date << " " << current_date << " " << index << "\n";
     }
     for (auto& observable : observables) {
         observable.read_data(hcore, current_date, index);
@@ -79,6 +85,19 @@ py::array_t<double> Hector::get_observable(const std::string& component, const s
     throw std::runtime_error("Observable not found");
 }
 
+double Hector::current_value(const std::string& component, const std::string& name, bool in_spinup) {
+    for (const auto& observable : visitor.observables) {
+        if (observable.matches(component, name, in_spinup)) {
+            if (start_date() > current_date()) {
+                throw std::runtime_error("Start date is after current date");
+            }
+            std::size_t index = static_cast<std::size_t>(current_date() - start_date());
+            return observable.value_at(index);
+        }
+    }
+    throw std::runtime_error("Observable not found");
+}
+
 void Hector::clear_observables() { visitor.observables.clear(); }
 
 std::size_t Hector::run_size() { return static_cast<std::size_t>(std::max(0.0, core()->getEndDate() - core()->getStartDate())); }
@@ -88,6 +107,8 @@ std::size_t Hector::spinup_size() const { return visitor.spinup_size; }
 double Hector::end_date() { return core()->getEndDate(); }
 
 double Hector::start_date() { return core()->getStartDate(); }
+
+double Hector::current_date() { return visitor.current_date; }
 
 void Hector::prepareToRun() {
     visitor.spinup_size = 0;
